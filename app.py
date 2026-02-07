@@ -1,4 +1,5 @@
 import json
+import traceback
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
@@ -28,6 +29,14 @@ def load_config():
 def save_config(data: dict):
     with CONFIG_PATH.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
+
+def auth_status():
+    try:
+        creds = get_credentials()
+        return bool(creds and creds.valid)
+    except Exception:
+        return False
 
 
 def normalize_class_id(value: str) -> str:
@@ -102,6 +111,21 @@ def index():
 @app.get("/api/config")
 def api_config():
     return jsonify(load_config())
+
+
+@app.get("/api/auth-status")
+def api_auth_status():
+    return jsonify({"logged_in": auth_status()})
+
+
+@app.post("/api/login")
+def api_login():
+    try:
+        get_credentials()
+        return jsonify({"logged_in": True})
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"logged_in": False, "error": str(exc)}), 500
 
 
 @app.get("/api/list-assignments")

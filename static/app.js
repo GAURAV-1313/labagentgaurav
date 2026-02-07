@@ -17,6 +17,8 @@ const turnInInput = document.getElementById("turnIn");
 const listAssignmentsBtn = document.getElementById("listAssignments");
 const listNotebooksBtn = document.getElementById("listNotebooks");
 const runBtn = document.getElementById("run");
+const loginBtn = document.getElementById("loginBtn");
+const authStatus = document.getElementById("authStatus");
 
 const setStatus = (text) => {
   statusEl.textContent = text;
@@ -56,6 +58,14 @@ const loadConfig = async () => {
   autoNumberInput.checked = cfg.auto_number ?? true;
   screenshotsInput.checked = cfg.screenshot_outputs ?? true;
   shareImagesInput.checked = cfg.share_images ?? true;
+  const authRes = await fetch("/api/auth-status");
+  if (authRes.ok) {
+    const auth = await authRes.json();
+    authStatus.textContent = auth.logged_in ? "Logged in" : "Not logged in";
+    if (!auth.logged_in) {
+      setStatus("Please login to continue.");
+    }
+  }
 };
 
 listAssignmentsBtn.addEventListener("click", async () => {
@@ -149,6 +159,20 @@ runBtn.addEventListener("click", async () => {
   const data = await res.json();
   setStatus(`Done. Doc ID: ${data.doc_id}`);
   setPreview(data.doc_id);
+});
+
+loginBtn.addEventListener("click", async () => {
+  setStatus("Opening login...");
+  const res = await fetch("/api/login", { method: "POST" });
+  if (!res.ok) {
+    const err = await res.json();
+    setStatus(err.error || "Login failed.");
+    authStatus.textContent = "Not logged in";
+    return;
+  }
+  const data = await res.json();
+  authStatus.textContent = data.logged_in ? "Logged in" : "Not logged in";
+  setStatus("Login complete.");
 });
 
 loadConfig();

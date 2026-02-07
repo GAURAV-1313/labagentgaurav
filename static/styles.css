@@ -34,9 +34,28 @@ body {
 .hero {
   background: linear-gradient(135deg, #fff, #ffe7d8);
   border-radius: var(--radius);
-  padding: 28px 32px;
+  padding: 24px 20px;
   box-shadow: var(--shadow);
   border: 1px solid var(--line);
+}
+
+.hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.auth button {
+  padding: 6px 12px;
 }
 
 .brand {
