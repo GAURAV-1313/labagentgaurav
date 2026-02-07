@@ -52,6 +52,13 @@ def get_credentials() -> Credentials:
     return creds
 
 
+def get_services(creds: Credentials):
+    drive_service = build("drive", "v3", credentials=creds)
+    docs_service = build("docs", "v1", credentials=creds)
+    classroom_service = build("classroom", "v1", credentials=creds)
+    return drive_service, docs_service, classroom_service
+
+
 def download_notebook(drive_service, file_id: str) -> dict:
     request = drive_service.files().get_media(
         fileId=file_id, supportsAllDrives=True
@@ -389,51 +396,26 @@ def list_pending_assignments(classroom_service, class_id: str):
     return pending
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True)
-    parser.add_argument("--list-assignments", action="store_true")
-    parser.add_argument("--list-drive-folder", default=None)
-    parser.add_argument("--auto-number", action="store_true")
-    parser.add_argument("--no-turn-in", action="store_true")
-    args = parser.parse_args()
+def list_drive_folder_files(drive_service, folder_id: str):
+    results = drive_service.files().list(
+        q=f"'{folder_id}' in parents and trashed=false",
+        fields="files(id, name, mimeType)",
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True,
+    ).execute()
+    return results.get("files", [])
 
-    config = load_config(args.config)
+
+def run_pipeline(
+    config: dict,
+    *,
+    auto_number: bool,
+    turn_in: bool,
+):
     creds = get_credentials()
-
-    drive_service = build("drive", "v3", credentials=creds)
-    docs_service = build("docs", "v1", credentials=creds)
-    classroom_service = build("classroom", "v1", credentials=creds)
-
-    if args.list_assignments:
-        pending = list_pending_assignments(classroom_service, config["class_id"])
-        if not pending:
-            print("No pending assignments found.")
-            return
-        print("Pending assignments:")
-        for work_id, title, due_str, state in pending:
-            due_part = f" (due {due_str})" if due_str else ""
-            print(f"- {title}{due_part} | id={work_id} | state={state}")
-        return
-
-    if args.list_drive_folder:
-        results = drive_service.files().list(
-            q=f"'{args.list_drive_folder}' in parents and trashed=false",
-            fields="files(id, name, mimeType)",
-            supportsAllDrives=True,
-            includeItemsFromAllDrives=True,
-        ).execute()
-        files = results.get("files", [])
-        if not files:
-            print("No files found in folder.")
-            return
-        print("Files in folder:")
-        for f in files:
-            print(f"- {f['name']} | id={f['id']} | {f['mimeType']}")
-        return
+    drive_service, docs_service, classroom_service = get_services(creds)
 
     nb = download_notebook(drive_service, config["notebook_file_id"])
-    auto_number = args.auto_number or config.get("auto_number", False)
     questions, screenshot_map = parse_notebook(nb, auto_number)
     if not questions:
         raise RuntimeError(
@@ -468,13 +450,56 @@ def main():
         except OSError:
             pass
 
-    if not args.no_turn_in:
+    if turn_in:
         attach_and_turn_in(
             classroom_service, config["class_id"], config["assignment_id"], doc_id
         )
-    else:
-        print("Doc created. Skipping Classroom turn-in.")
 
+    return doc_id
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True)
+    parser.add_argument("--list-assignments", action="store_true")
+    parser.add_argument("--list-drive-folder", default=None)
+    parser.add_argument("--auto-number", action="store_true")
+    parser.add_argument("--no-turn-in", action="store_true")
+    args = parser.parse_args()
+
+    config = load_config(args.config)
+    creds = get_credentials()
+    drive_service, docs_service, classroom_service = get_services(creds)
+
+    if args.list_assignments:
+        pending = list_pending_assignments(classroom_service, config["class_id"])
+        if not pending:
+            print("No pending assignments found.")
+            return
+        print("Pending assignments:")
+        for work_id, title, due_str, state in pending:
+            due_part = f" (due {due_str})" if due_str else ""
+            print(f"- {title}{due_part} | id={work_id} | state={state}")
+        return
+
+    if args.list_drive_folder:
+        files = list_drive_folder_files(drive_service, args.list_drive_folder)
+        if not files:
+            print("No files found in folder.")
+            return
+        print("Files in folder:")
+        for f in files:
+            print(f"- {f['name']} | id={f['id']} | {f['mimeType']}")
+        return
+
+    auto_number = args.auto_number or config.get("auto_number", False)
+    doc_id = run_pipeline(
+        config,
+        auto_number=auto_number,
+        turn_in=not args.no_turn_in,
+    )
+    if args.no_turn_in:
+        print("Doc created. Skipping Classroom turn-in.")
     print(f"Submitted. Doc ID: {doc_id}")
 
 

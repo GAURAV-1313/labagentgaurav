@@ -45,6 +45,13 @@ python -m playwright install
 python lab_agent.py --config config.json
 ```
 
+## UI (Single Page)
+Start the local web app:
+```
+python app.py
+```
+Open `http://localhost:5055` in your browser.
+
 ## Notes
 - Question numbers can be detected in markdown, code comments, or output text (ex: `Q3`, `Question 4`).
 - For full output screenshots, set `"screenshot_outputs": true` in your config.

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lab Agent UI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div class="brand">Lab Agent Gaurav</div>
+        <h1>Colab to Classroom, in one page</h1>
+        <p>Pick a notebook, select an assignment, and generate the evidence doc.</p>
+      </header>
+
+      <section class="panel">
+        <div class="grid">
+          <label>
+            Class ID/URL
+            <input id="classId" type="text" placeholder="839145801290 or Classroom URL" />
+          </label>
+          <label>
+            Assignment ID/URL
+            <input id="assignmentId" type="text" placeholder="825220816345 or Assignment URL" />
+          </label>
+          <label>
+            Notebook ID/URL
+            <input id="notebookId" type="text" placeholder="Colab or Drive URL" />
+          </label>
+          <label>
+            Doc Title
+            <input id="docTitle" type="text" placeholder="Lab Evidence" />
+          </label>
+        </div>
+
+        <div class="toggles">
+          <label><input id="autoNumber" type="checkbox" checked /> Auto-number questions</label>
+          <label><input id="screenshots" type="checkbox" checked /> Capture output screenshots</label>
+          <label><input id="shareImages" type="checkbox" checked /> Share images for embeds</label>
+          <label><input id="turnIn" type="checkbox" /> Turn in to Classroom</label>
+        </div>
+
+        <div class="actions">
+          <button id="listAssignments">List Assignments</button>
+          <button id="listNotebooks">List Notebooks in Folder</button>
+          <button class="primary" id="run">Generate Doc</button>
+        </div>
+      </section>
+
+      <section class="panel split">
+        <div>
+          <h2>Assignments</h2>
+          <div id="assignments" class="list"></div>
+        </div>
+        <div>
+          <div class="section-head">
+            <h2>Notebooks</h2>
+            <input id="folderId" type="text" placeholder="Folder ID/URL" />
+          </div>
+          <div id="notebooks" class="list"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Status</h2>
+        <pre id="status">Ready.</pre>
+        <div id="preview" class="preview">No preview yet.</div>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
