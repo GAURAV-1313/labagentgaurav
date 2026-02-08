@@ -146,6 +146,10 @@ def index():
     return render_template("index.html")
 
 
+@app.get("/health")
+def health():
+    return "ok", 200
+
 @app.get("/api/config")
 def api_config():
     return jsonify(load_config())
