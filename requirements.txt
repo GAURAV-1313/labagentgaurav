@@ -5,3 +5,4 @@ nbconvert
 nbformat
 playwright
 flask
+gunicorn
