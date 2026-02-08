@@ -52,6 +52,20 @@ python app.py
 ```
 Open `http://localhost:5055` in your browser.
 
+## Deploy (Railway)
+Railway requires a Web OAuth flow (not the local desktop flow).
+
+1. Create **Web App** OAuth credentials in Google Cloud.
+2. Add these **Redirect URIs**:
+   - `https://YOUR-APP.up.railway.app/oauth2callback`
+3. Set Railway environment variables:
+   - `WEB_OAUTH=1`
+   - `GOOGLE_CLIENT_ID=...`
+   - `GOOGLE_CLIENT_SECRET=...`
+   - `GOOGLE_REDIRECT_URI=https://YOUR-APP.up.railway.app/oauth2callback`
+   - `FLASK_SECRET_KEY=...`
+4. Deploy the repo on Railway and open the app URL.
+
 ## Notes
 - Question numbers can be detected in markdown, code comments, or output text (ex: `Q3`, `Question 4`).
 - For full output screenshots, set `"screenshot_outputs": true` in your config.

@@ -1,10 +1,13 @@
 import json
+import os
 import traceback
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, redirect, session
+from google_auth_oauthlib.flow import Flow
 
 from lab_agent import (
+    SCOPES,
     get_credentials,
     get_services,
     list_pending_assignments,
@@ -15,8 +18,10 @@ from lab_agent import (
 
 APP_ROOT = Path(__file__).parent
 CONFIG_PATH = APP_ROOT / "config.json"
+TOKEN_PATH = APP_ROOT / "token.json"
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-key")
 
 
 def load_config():
@@ -37,6 +42,37 @@ def auth_status():
         return bool(creds and creds.valid)
     except Exception:
         return False
+
+
+def load_oauth_client():
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
+    if client_id and client_secret and redirect_uri:
+        return {
+            "web": {
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": [redirect_uri],
+            }
+        }
+
+    cred_path = APP_ROOT / "credentials.json"
+    if cred_path.exists():
+        with cred_path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    raise FileNotFoundError("credentials.json or GOOGLE_CLIENT_ID/SECRET not found.")
+
+
+def build_flow():
+    client = load_oauth_client()
+    flow = Flow.from_client_config(client, scopes=SCOPES)
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
+    if redirect_uri:
+        flow.redirect_uri = redirect_uri
+    return flow
 
 
 def normalize_class_id(value: str) -> str:
@@ -118,13 +154,43 @@ def api_auth_status():
     return jsonify({"logged_in": auth_status()})
 
 
-@app.post("/api/login")
-def api_login():
+@app.get("/login")
+def login():
     try:
-        get_credentials()
-        return jsonify({"logged_in": True})
+        flow = build_flow()
+        auth_url, state = flow.authorization_url(
+            access_type="offline",
+            include_granted_scopes="true",
+            prompt="consent",
+        )
+        session["state"] = state
+        return redirect(auth_url)
     except Exception as exc:
         traceback.print_exc()
+        return f"Login error: {exc}", 500
+
+
+@app.get("/oauth2callback")
+def oauth2callback():
+    try:
+        flow = build_flow()
+        flow.fetch_token(authorization_response=request.url)
+        creds = flow.credentials
+        with TOKEN_PATH.open("w", encoding="utf-8") as f:
+            f.write(creds.to_json())
+        return redirect("/")
+    except Exception as exc:
+        traceback.print_exc()
+        return f"OAuth callback error: {exc}", 500
+
+
+@app.post("/api/logout")
+def api_logout():
+    try:
+        if TOKEN_PATH.exists():
+            TOKEN_PATH.unlink()
+        return jsonify({"logged_in": False})
+    except Exception as exc:
         return jsonify({"logged_in": False, "error": str(exc)}), 500
 
 
@@ -134,7 +200,10 @@ def api_list_assignments():
     if not class_id:
         return jsonify({"error": "class_id is required"}), 400
     class_id = normalize_class_id(class_id)
-    creds = get_credentials()
+    try:
+        creds = get_credentials()
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 401
     _, _, classroom_service = get_services(creds)
     pending = list_pending_assignments(classroom_service, class_id)
     return jsonify(
@@ -157,7 +226,10 @@ def api_list_drive_folder():
                 "error": "Please paste a folder URL like https://drive.google.com/drive/folders/FOLDER_ID"
             }
         ), 400
-    creds = get_credentials()
+    try:
+        creds = get_credentials()
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 401
     drive_service, _, _ = get_services(creds)
     files = list_drive_folder_files(drive_service, folder_id)
     return jsonify(files)
@@ -185,12 +257,16 @@ def api_run():
     }
     save_config(config)
 
-    doc_id = run_pipeline(
-        config,
-        auto_number=config["auto_number"],
-        turn_in=bool(payload.get("turn_in", False)),
-    )
-    return jsonify({"doc_id": doc_id})
+    try:
+        doc_id = run_pipeline(
+            config,
+            auto_number=config["auto_number"],
+            turn_in=bool(payload.get("turn_in", False)),
+        )
+        return jsonify({"doc_id": doc_id})
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
 
 
 if __name__ == "__main__":

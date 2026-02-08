@@ -43,6 +43,8 @@ def get_credentials() -> Credentials:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
+            if os.getenv("WEB_OAUTH") == "1":
+                raise RuntimeError("Not authenticated. Please login in the UI.")
             flow = InstalledAppFlow.from_client_secrets_file(
                 "credentials.json", SCOPES
             )

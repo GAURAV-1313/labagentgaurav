@@ -19,6 +19,7 @@ const listNotebooksBtn = document.getElementById("listNotebooks");
 const runBtn = document.getElementById("run");
 const loginBtn = document.getElementById("loginBtn");
 const authStatus = document.getElementById("authStatus");
+const logoutBtn = document.getElementById("logoutBtn");
 
 const setStatus = (text) => {
   statusEl.textContent = text;
@@ -163,16 +164,19 @@ runBtn.addEventListener("click", async () => {
 
 loginBtn.addEventListener("click", async () => {
   setStatus("Opening login...");
-  const res = await fetch("/api/login", { method: "POST" });
+  window.location.href = "/login";
+});
+
+logoutBtn.addEventListener("click", async () => {
+  setStatus("Switching account...");
+  const res = await fetch("/api/logout", { method: "POST" });
   if (!res.ok) {
     const err = await res.json();
-    setStatus(err.error || "Login failed.");
-    authStatus.textContent = "Not logged in";
+    setStatus(err.error || "Logout failed.");
     return;
   }
-  const data = await res.json();
-  authStatus.textContent = data.logged_in ? "Logged in" : "Not logged in";
-  setStatus("Login complete.");
+  authStatus.textContent = "Not logged in";
+  setStatus("Logged out. Click Login to sign in again.");
 });
 
 loadConfig();
