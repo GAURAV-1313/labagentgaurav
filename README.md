@@ -66,6 +66,11 @@ Railway requires a Web OAuth flow (not the local desktop flow).
    - `FLASK_SECRET_KEY=...`
 4. Deploy the repo on Railway and open the app URL.
 
+Railway will use the `Procfile` which runs:
+```
+gunicorn app:app --bind 0.0.0.0:$PORT
+```
+
 ## Notes
 - Question numbers can be detected in markdown, code comments, or output text (ex: `Q3`, `Question 4`).
 - For full output screenshots, set `"screenshot_outputs": true` in your config.

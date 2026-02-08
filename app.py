@@ -38,6 +38,8 @@ def save_config(data: dict):
 
 def auth_status():
     try:
+        if os.getenv("WEB_OAUTH") == "1" and not TOKEN_PATH.exists():
+            return False
         creds = get_credentials()
         return bool(creds and creds.valid)
     except Exception:
@@ -270,4 +272,5 @@ def api_run():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5055)
+    port = int(os.getenv("PORT", "5055"))
+    app.run(host="0.0.0.0", port=port, debug=False)
